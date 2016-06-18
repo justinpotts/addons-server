@@ -3,6 +3,8 @@ import json
 import os
 import posixpath
 import re
+import struct
+import tempfile
 import time
 import unicodedata
 import uuid
@@ -590,6 +592,7 @@ class FileUpload(ModelBase):
         filename = smart_str(u'{0}_{1}'.format(self.uuid, filename))
         loc = os.path.join(user_media_path('addons'), 'temp', uuid.uuid4().hex)
         base, ext = os.path.splitext(smart_path(filename))
+        skip_write_from_crx = False
 
         # Change a ZIP to an XPI, to maintain backward compatibility
         # with older versions of Firefox and to keep the rest of the XPI code
@@ -598,15 +601,54 @@ class FileUpload(ModelBase):
         if ext == '.zip':
             ext = '.xpi'
 
+        # If the extension is a CRX, we need to do some actual work to it
+        # before we just convert it to an XPI. We strip the header from the
+        # CRX, then it's good; see more about the CRX file format here:
+        # https://developer.chrome.com/extensions/crx
+        if ext == '.crx':
+            ext = '.xpi'
+            skip_write_from_crx = True
+            temp_crx_file = tempfile.mkdtemp()  # a temp file to store the CRX
+
+            # First we open the uploaded CRX so we can see how much we need
+            # to trim from the header of the file to make it a valid ZIP.
+            with storage.open(temp_crx_file, 'rwb+') as temp_file:
+                for chunk in chunks:
+                    temp_file.write(chunk)
+
+                temp_file.seek(0)
+
+                header = temp_file.read(16)
+                header_info = struct.unpack('4cHxII', header)
+                public_key_length = header_info[5]
+                signature_length = header_info[6]
+
+                # This is how far forward we need to seek to extract only a
+                # ZIP file from this CRX.
+                start_position = 16 + public_key_length + signature_length
+
+                hash = hashlib.sha256()
+                temp_file.seek(start_position)
+
+                # Now we open the Django storage and write our real XPI file.
+                with storage.open(loc + ext, 'wb') as file_destination:
+                    bytes = temp_file.read(65536)
+                    # Keep reading bytes and writing them to the XPI.
+                    while bytes:
+                        hash.update(bytes)
+                        file_destination.write(bytes)
+                        bytes = temp_file.read(65536)
+
         if ext in EXTENSIONS:
             loc += ext
 
         log.info('UPLOAD: %r (%s bytes) to %r' % (filename, size, loc))
-        hash = hashlib.sha256()
-        with storage.open(loc, 'wb') as fd:
-            for chunk in chunks:
-                hash.update(chunk)
-                fd.write(chunk)
+        if not skip_write_from_crx:
+            hash = hashlib.sha256()
+            with storage.open(loc, 'wb') as file_destination:
+                for chunk in chunks:
+                    hash.update(chunk)
+                    file_destination.write(chunk)
         self.path = loc
         self.name = filename
         self.hash = 'sha256:%s' % hash.hexdigest()
