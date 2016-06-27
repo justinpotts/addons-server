@@ -36,6 +36,7 @@ from olympia.amo.utils import (
     urlparams)
 from olympia.amo.urlresolvers import get_outgoing_url, reverse
 from olympia.files.models import File
+from olympia.files.utils import extract_translations, resolve_i18n_message
 from olympia.reviews.models import Review
 from olympia.tags.models import Tag
 from olympia.translations.fields import (
@@ -532,6 +533,9 @@ class Addon(OnChangeMixin, ModelBase):
 
         addon = cls.initialize_addon_from_upload(
             is_listed=is_listed, data=data)
+
+        cls.resolve_translations(addon, data, upload)
+
         if upload.validation_timeout:
             addon.update(admin_review=True)
         Version.from_upload(upload, addon, platforms, source=source)
@@ -540,6 +544,24 @@ class Addon(OnChangeMixin, ModelBase):
         log.debug('New addon %r from %r' % (addon, upload))
 
         return addon
+
+    @classmethod
+    def resolve_translations(cls, addon, data, upload):
+        if not data.get('is_webextension', False):
+            return
+
+        fields = ('name', 'homepage', 'summary')
+        messages = extract_translations(upload)
+
+        for field in fields:
+            setattr(addon, field, {
+                locale: resolve_i18n_message(
+                    data[field],
+                    locale=locale,
+                    default_locale=addon.default_locale,
+                    messages=messages)
+                for locale in messages
+            })
 
     def get_url_path(self, more=False, add_prefix=True):
         if not self.is_listed:  # Not listed? Doesn't have a public page.
@@ -1403,77 +1425,6 @@ class Addon(OnChangeMixin, ModelBase):
 
     def in_escalation_queue(self):
         return self.escalationqueue_set.exists()
-
-    def update_names(self, new_names):
-        """
-        Adds, edits, or removes names to match the passed in new_names dict.
-        Will not remove the translation of the default_locale.
-
-        `new_names` is a dictionary mapping of locales to names.
-
-        Returns a message that can be used in logs showing what names were
-        added or updated.
-
-        Note: This method doesn't save the changes made to the addon object.
-        Don't forget to call save() in your calling method.
-        """
-        updated_locales = {}
-        locales = dict(Translation.objects.filter(id=self.name_id)
-                                          .values_list('locale',
-                                                       'localized_string'))
-        msg_c = []  # For names that were created.
-        msg_d = []  # For deletes.
-        msg_u = []  # For updates.
-
-        # Normalize locales.
-        names = {}
-        for locale, name in new_names.iteritems():
-            loc = find_language(locale)
-            if loc and loc not in names:
-                names[loc] = name
-
-        # Null out names no longer in `names` but exist in the database.
-        for locale in set(locales) - set(names):
-            names[locale] = None
-
-        for locale, name in names.iteritems():
-
-            if locale in locales:
-                if not name and locale.lower() == self.default_locale.lower():
-                    pass  # We never want to delete the default locale.
-                elif not name:  # A deletion.
-                    updated_locales[locale] = None
-                    msg_d.append(u'"%s" (%s).' % (locales.get(locale), locale))
-                elif name != locales[locale]:
-                    updated_locales[locale] = name
-                    msg_u.append(u'"%s" -> "%s" (%s).' % (
-                        locales[locale], name, locale))
-            else:
-                updated_locales[locale] = names.get(locale)
-                msg_c.append(u'"%s" (%s).' % (name, locale))
-
-        if locales != updated_locales:
-            self.name = updated_locales
-
-        return {
-            'added': ' '.join(msg_c),
-            'deleted': ' '.join(msg_d),
-            'updated': ' '.join(msg_u),
-        }
-
-    def update_default_locale(self, locale):
-        """
-        Updates default_locale if it's different and matches one of our
-        supported locales.
-
-        Returns tuple of (old_locale, new_locale) if updated. Otherwise None.
-        """
-        old_locale = self.default_locale
-        locale = find_language(locale)
-        if locale and locale != old_locale:
-            self.update(default_locale=locale)
-            return old_locale, locale
-        return None
 
     def check_ownership(self, request, require_owner, require_author,
                         ignore_disabled, admin):
