@@ -31,7 +31,7 @@ from olympia.addons.utils import (
 from olympia.amo import helpers
 from olympia.amo.decorators import use_master, write
 from olympia.amo.utils import (
-    attach_trans_dict, cache_ns_key, chunked, find_language, JSONEncoder,
+    attach_trans_dict, cache_ns_key, chunked, JSONEncoder,
     no_translation, send_mail, slugify, sorted_groupby, timer, to_language,
     urlparams)
 from olympia.amo.urlresolvers import get_outgoing_url, reverse

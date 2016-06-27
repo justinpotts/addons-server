@@ -878,8 +878,8 @@ def extract_translations(file_obj):
                 try:
                     messages[corrected_locale] = json.loads(source.read(fname))
                 except KeyError:
-                    # thrown by `source.read` usually means the file doesn't exist
-                    # for some reason, we fail silently
+                    # thrown by `source.read` usually means the file doesn't
+                    # exist for some reason, we fail silently
                     continue
     except IOError:
         pass
@@ -888,7 +888,8 @@ def extract_translations(file_obj):
 
 
 def resolve_i18n_message(
-        message, file_obj=None, locale=None, default_locale=None, messages=None):
+        message, file_obj=None, locale=None, default_locale=None,
+        messages=None):
     """Resolve a translatable string in an add-on.
 
     This matches ``__MSG_extensionName__`` like names and returns the correct
