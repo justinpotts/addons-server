@@ -65,10 +65,10 @@ def user(base_url, fxa_account, jwt_token):
 @pytest.fixture(scope='session')
 def firefox_path(tmpdir_factory, firefox_path):
     tmp_dir = tmpdir_factory.mktemp('firefox')
-    scraper = FactoryScraper('release', version='latest-beta')
+    scraper = FactoryScraper('release', version='latest-beta', destination=str(tmp_dir))
     filename = scraper.download()
     print 'using', filename
-    path = mozinstall.install(filename, os.getcwd())
+    path = mozinstall.install(filename, str(tmp_dir))
     return mozinstall.get_binary(path, 'Firefox')
 
 
