@@ -4,6 +4,9 @@ from pages.desktop.discopane import DiscoveryPane, DiscoveryPanePage, AboutAddon
 
 @pytest.fixture
 def firefox_profile(base_url, firefox_profile, discovery_pane_url):
+    if 'allizom' in base_url:
+        # set the appropriate signatures for dev and staging
+        firefox_profile.set_preference('xpinstall.signatures.dev-root', True)
     firefox_profile.set_preference('extensions.webapi.testing', True)
     firefox_profile.set_preference('extensions.webservice.discoverURL', discovery_pane_url)
     firefox_profile.update_preferences()
@@ -12,10 +15,12 @@ def firefox_profile(base_url, firefox_profile, discovery_pane_url):
 @pytest.fixture
 def discovery_pane(selenium, discovery_pane_url):
     return DiscoveryPanePage(selenium, discovery_pane_url).open().discovery_pane
+    #return AboutAddons(selenium, 'about:Addons').open()
 
 @pytest.mark.nondestructive
 def test_that_discovery_pane_loads(base_url, selenium, session_capabilities, discovery_pane):
     assert discovery_pane.is_discopane_visible
+    pytest.set_trace()
     assert (len(discovery_pane.uninstalled_addons) == 5)
 
 @pytest.mark.nondestructive

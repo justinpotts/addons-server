@@ -8,7 +8,7 @@ class DiscoveryPane(Region):
 
     _discopane_content_locator = (By.CSS_SELECTOR, '.disco-pane')
     _play_video_locator = (By.CSS_SELECTOR, '.play-video')
-    _uninstalled_toggles = (By.CSS_SELECTOR, '.switch.uninstalled')
+    _uninstalled_toggles = (By.CSS_SELECTOR, '..switch.unknown')
     _close_video_link = (By.CSS_SELECTOR, '.close-video')
     _see_more_addons_locator = (By.CSS_SELECTOR, '.amo-link')
 

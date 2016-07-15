@@ -62,23 +62,19 @@ def user(base_url, fxa_account, jwt_token):
     return user
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def firefox_path(tmpdir_factory, firefox_path):
-    if firefox_path is not None:
-        yield firefox_path
-    else:
-        tmp_dir = tmpdir_factory.mktemp('firefox')
-        scraper = FactoryScraper('release', version='latest', destination=str(tmp_dir))
-        filename = scraper.download()
-        path = mozinstall.install(filename, str(tmp_dir))
-        yield mozinstall.get_binary(path, 'Firefox')
-        mozinstall.uninstall(path)
-        os.remove(filename)
-        os.rmdir(str(tmp_dir))
+    tmp_dir = tmpdir_factory.mktemp('firefox')
+    scraper = FactoryScraper('release', version='latest-beta')
+    filename = scraper.download()
+    print 'using', filename
+    path = mozinstall.install(filename, os.getcwd())
+    return mozinstall.get_binary(path, 'Firefox')
 
 
 @pytest.fixture
 def discovery_pane_url(base_url):
+    print 'in disco_pane_url'
     if 'localhost' in base_url:
         discover_url = None
     elif 'dev' in base_url:
