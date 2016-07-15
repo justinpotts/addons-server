@@ -28,6 +28,7 @@ def test_that_welcome_video_plays(base_url, selenium, session_capabilities, disc
     discovery_pane.click_play_video()
     assert discovery_pane.is_video_playing
     discovery_pane.close_video()
+    pytest.set_trace()
     assert discovery_pane.is_video_closed
 
 @pytest.mark.nondestructive

@@ -11,6 +11,12 @@ import requests
 
 
 @pytest.fixture
+def capabilities(capabilities):
+    # In order to run these tests in Firefox 48, marionette is required
+    capabilities['marionette'] = True
+    return capabilities
+
+@pytest.fixture
 def fxa_account(base_url):
     url = DEV_URL if 'dev' in base_url else PROD_URL
     return FxATestAccount(url)
@@ -63,9 +69,9 @@ def user(base_url, fxa_account, jwt_token):
 
 
 @pytest.fixture(scope='session')
-def firefox_path(tmpdir_factory, firefox_path):
+def firefox_path(request, tmpdir_factory, firefox_path):
     tmp_dir = tmpdir_factory.mktemp('firefox')
-    scraper = FactoryScraper('release', version='latest-beta', destination=str(tmp_dir))
+    scraper = FactoryScraper('release', version='latest-beta', destination=str(request.config.cache.makedir('firefox')))
     filename = scraper.download()
     print 'using', filename
     path = mozinstall.install(filename, str(tmp_dir))
